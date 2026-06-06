@@ -1,4 +1,15 @@
+from app.models.user import User
 from app.persistence.repository import repo
+
+class HBnBFacade:
+    def create_user(self, user_data):
+        # Dataları alıb User obyektinə çeviririk
+        new_user = User(
+            first_name=user_data['first_name'],
+            last_name=user_data['last_name'],
+            email=user_data['email']
+        )
+        return repo.save(new_user)from app.persistence.repository import repo
 
 class HBnBFacade:
     def create_user(self, user_data):
