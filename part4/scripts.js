@@ -1,45 +1,56 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Check authentication and load places on page load
-    checkAuthentication();
+    // 1. Check if the user is authenticated; redirect to index.html if not
+    const token = checkAuthentication();
+    
+    // 2. Extract place ID from URL query parameters (e.g., add_review.html?id=123)
+    const placeId = getPlaceIdFromURL();
 
-    // 2. Setup client-side price filter event listener
-    const priceFilter = document.getElementById('price-filter');
-    if (priceFilter) {
-        priceFilter.addEventListener('change', (event) => {
-            const selectedValue = event.target.value;
-            const placeCards = document.querySelectorAll('.place-card');
+    // Dynamically set the "Back to Place" link href if placeId exists
+    const backLink = document.getElementById('back-to-place');
+    if (backLink && placeId) {
+        backLink.href = `place.html?id=${placeId}`;
+    } else if (backLink) {
+        backLink.href = 'index.html';
+    }
 
-            placeCards.forEach(card => {
-                const price = parseFloat(card.getAttribute('data-price'));
-                if (selectedValue === 'All' || price <= parseFloat(selectedValue)) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
+    // 3. Setup event listener for the review form submission
+    const reviewForm = document.getElementById('review-form');
+    if (reviewForm) {
+        reviewForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const rating = document.getElementById('rating').value;
+            const comment = document.getElementById('comment').value;
+
+            if (!placeId) {
+                showFormMessage('Error: Place ID is missing from the URL.', 'error');
+                return;
+            }
+
+            try {
+                await submitReview(token, placeId, rating, comment);
+            } catch (error) {
+                console.error('Error submitting review:', error);
+                showFormMessage('An unexpected error occurred. Please try again.', 'error');
+            }
         });
     }
 });
 
 /**
- * Checks for the JWT token in cookies and updates navigation visibility.
+ * Checks for the JWT token in cookies. Redirects to index.html if missing.
+ * @returns {string|null} The token if present.
  */
 function checkAuthentication() {
     const token = getCookie('token');
-    const loginLink = document.getElementById('login-link');
-
     if (!token) {
-        if (loginLink) loginLink.style.display = 'block';
-    } else {
-        if (loginLink) loginLink.style.display = 'none';
+        window.location.href = 'index.html';
     }
-
-    // Fetch places data (passes token if available)
-    fetchPlaces(token);
+    return token;
 }
 
 /**
- * Helper function to get a cookie value by its name.
+ * Helper function to retrieve a cookie value by its name.
  * @param {string} name 
  * @returns {string|null}
  */
@@ -51,66 +62,92 @@ function getCookie(name) {
 }
 
 /**
- * Fetches the list of places from the API via a GET request.
- * @param {string|null} token 
+ * Extracts the place ID from window.location.search query parameters.
+ * @returns {string|null}
  */
-async function fetchPlaces(token) {
-    // Replace with your actual back-end API places endpoint URL
-    const apiUrl = 'https://your-api-url/places'; 
+function getPlaceIdFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('id');
+}
 
-    const headers = {};
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
+/**
+ * Sends a POST request to submit the review data to the API.
+ * @param {string} token 
+ * @param {string} placeId 
+ * @param {string} rating 
+ * @param {string} comment 
+ */
+async function submitReview(token, placeId, rating, comment) {
+    // Replace with your actual back-end API review submission endpoint URL
+    const apiUrl = `https://your-api-url/places/${placeId}/reviews`; 
 
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: headers
-        });
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            place_id: placeId,
+            rating: parseInt(rating, 10),
+            text: comment // Note: adjust key name ('text' or 'comment') based on your API specs
+        })
+    });
 
-        if (response.ok) {
-            const places = await response.json();
-            displayPlaces(places);
-        } else {
-            console.error('Failed to fetch places:', response.statusText);
+    handleResponse(response);
+}
+
+/**
+ * Handles the API response for review submission.
+ * @param {Response} response 
+ */
+async function handleResponse(response) {
+    const reviewForm = document.getElementById('review-form');
+
+    if (response.ok) {
+        showFormMessage('Review submitted successfully!', 'success');
+        if (reviewForm) reviewForm.reset();
+        
+        // Optional: Redirect back to the place details page after a short delay
+        setTimeout(() => {
+            const placeId = getPlaceIdFromURL();
+            if (placeId) {
+                window.location.href = `place.html?id=${placeId}`;
+            }
+        }, 1500);
+    } else {
+        let errorMsg = 'Failed to submit review.';
+        try {
+            const errData = await response.json();
+            if (errData.msg || errData.message) {
+                errorMsg = errData.msg || errData.message;
+            }
+        } catch (e) {
+            errorMsg = `Failed to submit review: ${response.statusText}`;
         }
-    } catch (error) {
-        console.error('Error connecting to the API:', error);
+        showFormMessage(errorMsg, 'error');
     }
 }
 
 /**
- * Dynamically builds and inserts place cards into the DOM.
- * @param {Array} places 
+ * Displays status messages inside the form container.
+ * @param {string} message 
+ * @param {string} type ('success' or 'error')
  */
-function displayPlaces(places) {
-    const placesList = document.getElementById('places-list');
-    if (!placesList) return;
+function showFormMessage(message, type) {
+    const msgDiv = document.getElementById('form-message');
+    if (!msgDiv) return;
 
-    placesList.innerHTML = ''; // Clear current content
-
-    if (!places || places.length === 0) {
-        placesList.innerHTML = '<p>No places available at the moment.</p>';
-        return;
+    msgDiv.textContent = message;
+    msgDiv.style.display = 'block';
+    
+    if (type === 'success') {
+        msgDiv.style.backgroundColor = '#d4edda';
+        msgDiv.style.color = '#155724';
+        msgDiv.style.border = '1px solid #c3e6cb';
+    } else {
+        msgDiv.style.backgroundColor = '#f8d7da';
+        msgDiv.style.color = '#721c24';
+        msgDiv.style.border = '1px solid #f5c6cb';
     }
-
-    places.forEach(place => {
-        const placeCard = document.createElement('div');
-        placeCard.className = 'place-card';
-        
-        // Store price as a data attribute to make filtering straightforward
-        const price = place.price_by_night || place.price || 0;
-        placeCard.setAttribute('data-price', price);
-
-        placeCard.innerHTML = `
-            <img src="${place.image || 'images/default-place.jpg'}" alt="${place.name}">
-            <h3>${place.name}</h3>
-            <p><strong>Price per night:</strong> $${price}</p>
-            <p>${place.description ? place.description.substring(0, 90) + '...' : ''}</p>
-            <a href="place.html?id=${place.id}" class="details-button">View Details</a>
-        `;
-
-        placesList.appendChild(placeCard);
-    });
 }
