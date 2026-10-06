@@ -1,82 +1,116 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.getElementById('login-form');
-    const errorMessageDiv = document.getElementById('error-message');
+    // 1. Check authentication and load places on page load
+    checkAuthentication();
 
-    if (loginForm) {
-        loginForm.addEventListener('submit', async (event) => {
-            event.preventDefault(); // Prevent default browser form submission
+    // 2. Setup client-side price filter event listener
+    const priceFilter = document.getElementById('price-filter');
+    if (priceFilter) {
+        priceFilter.addEventListener('change', (event) => {
+            const selectedValue = event.target.value;
+            const placeCards = document.querySelectorAll('.place-card');
 
-            // Retrieve input values
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            // Clear any previous error messages
-            if (errorMessageDiv) {
-                errorMessageDiv.style.display = 'none';
-                errorMessageDiv.textContent = '';
-            }
-
-            try {
-                await loginUser(email, password);
-            } catch (error) {
-                console.error('Login error:', error);
-                showError('An unexpected error occurred. Please try again later.');
-            }
+            placeCards.forEach(card => {
+                const price = parseFloat(card.getAttribute('data-price'));
+                if (selectedValue === 'All' || price <= parseFloat(selectedValue)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
         });
     }
 });
 
 /**
- * Sends a POST request to the API login endpoint.
- * @param {string} email 
- * @param {string} password 
+ * Checks for the JWT token in cookies and updates navigation visibility.
  */
-async function loginUser(email, password) {
-    // Replace with your actual back-end API login endpoint URL
-    const apiUrl = 'https://your-api-url/login'; 
+function checkAuthentication() {
+    const token = getCookie('token');
+    const loginLink = document.getElementById('login-link');
 
-    const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-    });
-
-    if (response.ok) {
-        const data = await response.json();
-        
-        // Store the JWT token in a cookie (valid for the entire domain)
-        document.cookie = `token=${data.access_token}; path=/; Secure; SameSite=Strict`;
-        
-        // Redirect to the main page after successful login
-        window.location.href = 'index.html';
+    if (!token) {
+        if (loginLink) loginLink.style.display = 'block';
     } else {
-        // Handle failed login
-        let errorMsg = 'Login failed. Please check your credentials.';
-        try {
-            const errData = await response.json();
-            if (errData.msg) {
-                errorMsg = errData.msg;
-            }
-        } catch (e) {
-            // Fallback if response is not JSON
-            errorMsg = `Login failed: ${response.statusText}`;
+        if (loginLink) loginLink.style.display = 'none';
+    }
+
+    // Fetch places data (passes token if available)
+    fetchPlaces(token);
+}
+
+/**
+ * Helper function to get a cookie value by its name.
+ * @param {string} name 
+ * @returns {string|null}
+ */
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+/**
+ * Fetches the list of places from the API via a GET request.
+ * @param {string|null} token 
+ */
+async function fetchPlaces(token) {
+    // Replace with your actual back-end API places endpoint URL
+    const apiUrl = 'https://your-api-url/places'; 
+
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (response.ok) {
+            const places = await response.json();
+            displayPlaces(places);
+        } else {
+            console.error('Failed to fetch places:', response.statusText);
         }
-        showError(errorMsg);
+    } catch (error) {
+        console.error('Error connecting to the API:', error);
     }
 }
 
 /**
- * Displays an error message to the user.
- * @param {string} message 
+ * Dynamically builds and inserts place cards into the DOM.
+ * @param {Array} places 
  */
-function showError(message) {
-    const errorMessageDiv = document.getElementById('error-message');
-    if (errorMessageDiv) {
-        errorMessageDiv.textContent = message;
-        errorMessageDiv.style.display = 'block';
-    } else {
-        alert(message); // Fallback to alert if the error div is missing
+function displayPlaces(places) {
+    const placesList = document.getElementById('places-list');
+    if (!placesList) return;
+
+    placesList.innerHTML = ''; // Clear current content
+
+    if (!places || places.length === 0) {
+        placesList.innerHTML = '<p>No places available at the moment.</p>';
+        return;
     }
+
+    places.forEach(place => {
+        const placeCard = document.createElement('div');
+        placeCard.className = 'place-card';
+        
+        // Store price as a data attribute to make filtering straightforward
+        const price = place.price_by_night || place.price || 0;
+        placeCard.setAttribute('data-price', price);
+
+        placeCard.innerHTML = `
+            <img src="${place.image || 'images/default-place.jpg'}" alt="${place.name}">
+            <h3>${place.name}</h3>
+            <p><strong>Price per night:</strong> $${price}</p>
+            <p>${place.description ? place.description.substring(0, 90) + '...' : ''}</p>
+            <a href="place.html?id=${place.id}" class="details-button">View Details</a>
+        `;
+
+        placesList.appendChild(placeCard);
+    });
 }
