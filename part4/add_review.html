@@ -13,17 +13,22 @@
         <nav>
             <ul>
                 <li><a href="index.html">Home</a></li>
-                <li><a href="place.html">Back to Place</a></li>
+                <li><a href="#" id="back-to-place">Back to Place</a></li>
             </ul>
         </nav>
     </header>
 
     <main>
-        <form class="form add-review">
+        <form id="review-form" class="form add-review">
             <h2>Add a Review</h2>
+            
+            <!-- Message container for feedback -->
+            <div id="form-message" style="margin-bottom: 15px; display: none; padding: 10px; border-radius: 5px;"></div>
+
             <div class="form-group">
                 <label for="rating">Rating</label>
                 <select id="rating" name="rating" required>
+                    <option value="">Select rating</option>
                     <option value="5">5 - Excellent</option>
                     <option value="4">4 - Good</option>
                     <option value="3">3 - Average</option>
@@ -33,7 +38,7 @@
             </div>
             <div class="form-group">
                 <label for="comment">Your Review</label>
-                <textarea id="comment" name="comment" rows="5" required></textarea>
+                <textarea id="comment" name="comment" rows="5" required placeholder="Write your review here..."></textarea>
             </div>
             <button type="submit">Submit Review</button>
         </form>
@@ -42,5 +47,7 @@
     <footer>
         <p>&copy; 2026 HBnB. All rights reserved.</p>
     </footer>
+
+    <script src="scripts.js"></script>
 </body>
 </html>
