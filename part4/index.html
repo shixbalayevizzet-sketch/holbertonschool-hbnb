@@ -13,27 +13,36 @@
         <nav>
             <ul>
                 <li><a href="index.html">Home</a></li>
-                <li><a href="login.html" class="login-button">Login</a></li>
+                <!-- Login link with id for toggling visibility -->
+                <li><a href="login.html" id="login-link" class="login-button">Login</a></li>
             </ul>
         </nav>
     </header>
 
     <main>
         <h1>Available Places</h1>
-        <section class="places-list">
-            <!-- Place Card Example -->
-            <div class="place-card">
-                <img src="images/place1.jpg" alt="Cozy Apartment">
-                <h3>Cozy Apartment in City Center</h3>
-                <p>Price per night: $120</p>
-                <a href="place.html" class="details-button">View Details</a>
-            </div>
-            <!-- Repeat place-cards as needed -->
+
+        <!-- Price Filter Dropdown -->
+        <div class="filter-container" style="margin: 20px 0;">
+            <label for="price-filter"><strong>Filter by Max Price:</strong> </label>
+            <select id="price-filter" style="padding: 5px; border-radius: 5px;">
+                <option value="All">All</option>
+                <option value="10">10</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+
+        <!-- Places List Container -->
+        <section id="places-list" class="places-list">
+            <!-- Dynamically populated place cards will appear here -->
         </section>
     </main>
 
     <footer>
         <p>&copy; 2026 HBnB. All rights reserved.</p>
     </footer>
+
+    <script src="scripts.js"></script>
 </body>
 </html>
